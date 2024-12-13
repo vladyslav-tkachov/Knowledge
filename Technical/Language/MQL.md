@@ -1,4 +1,4 @@
-### MongoDB Query Language (MQL) 
+# MongoDB Query Language (MQL) 
 Is the syntax used to interact with MongoDB. It is similar to JSON and JavaScript-like in its structure, which makes it straightforward for developers familiar with JSON or JavaScript.
 
 ## **1. Connect to a MongoDB Database**
