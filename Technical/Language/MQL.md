@@ -211,8 +211,289 @@ db.collection_name.dropIndex({ age: 1 })
   ```javascript
   db.dropDatabase()
   ```
+
 ---
-### Comparison Of SQL To MongoDB
+
+## **8. Advanced Aggregation**
+
+### **Pipeline Stages**
+
+1. **`$match`**: Filters data.
+2. **`$group`**: Groups data by a field and applies aggregations.
+3. **`$sort`**: Orders the results.
+4. **`$project`**: Includes/excludes specific fields.
+5. **`$lookup`**: Performs a join with another collection.
+
+### **Code Example: Comprehensive Aggregation**
+```javascript
+db.orders.aggregate([
+  { $match: { status: "shipped" } }, // Filter shipped orders
+  { $group: { _id: "$customerId", totalSpent: { $sum: "$amount" } } }, // Group by customer and sum their spending
+  { $sort: { totalSpent: -1 } }, // Sort by total spent, descending
+  { $limit: 5 }, // Top 5 customers
+  { $lookup: {
+      from: "customers",
+      localField: "_id",
+      foreignField: "customerId",
+      as: "customerDetails"
+    }
+  } // Enrich with customer details
+])
+```
+
+---
+
+## **9. Transaction Operations**
+
+MongoDB supports multi-document ACID transactions in replica sets.
+
+### **Code Example: Transactions**
+```javascript
+const session = db.getMongo().startSession();
+session.startTransaction();
+
+try {
+  const ordersCollection = session.getDatabase("store").orders;
+  const inventoryCollection = session.getDatabase("store").inventory;
+
+  ordersCollection.insertOne({ orderId: 1, product: "Book", quantity: 1 });
+  inventoryCollection.updateOne(
+    { product: "Book" },
+    { $inc: { stock: -1 } }
+  );
+
+  session.commitTransaction();
+} catch (error) {
+  session.abortTransaction();
+  console.error("Transaction failed:", error);
+} finally {
+  session.endSession();
+}
+```
+
+### **Key Concepts**
+- Transactions ensure data consistency across collections.
+- Use `startTransaction()` and `commitTransaction()` for atomic operations.
+
+---
+
+## **10. Advanced Indexing**
+
+### **Compound Index**
+```javascript
+db.collection_name.createIndex({ age: 1, name: 1 })
+```
+- Combines multiple fields into a single index.
+
+### **Text Index**
+```javascript
+db.collection_name.createIndex({ description: "text" })
+```
+- Enables full-text search.
+
+### **Wildcard Index**
+```javascript
+db.collection_name.createIndex({ "$**": 1 })
+```
+- Indexes all fields in a document.
+
+### **Performance Insight**
+Use `explain()` to analyze query performance:
+```javascript
+db.collection_name.find({ age: 25 }).explain("executionStats")
+```
+
+---
+
+## **11. Full-Text Search**
+
+### **Search Text Fields**
+```javascript
+db.collection_name.find({ $text: { $search: "apple" } })
+```
+
+### **Search with Weighting**
+```javascript
+db.collection_name.createIndex({ title: "text", description: "text" }, { weights: { title: 10, description: 2 } })
+```
+
+### **Exclude Irrelevant Matches**
+```javascript
+db.collection_name.find({ $text: { $search: "apple -banana" } })
+```
+- Use `-` to exclude terms.
+
+---
+
+## **12. Geospatial Queries**
+
+### **Create a Geospatial Index**
+```javascript
+db.places.createIndex({ location: "2dsphere" })
+```
+
+### **Find Places Near a Point**
+```javascript
+db.places.find({
+  location: {
+    $near: {
+      $geometry: { type: "Point", coordinates: [longitude, latitude] },
+      $maxDistance: 1000 // Meters
+    }
+  }
+})
+```
+
+### **Find Places Within a Polygon**
+```javascript
+db.places.find({
+  location: {
+    $geoWithin: {
+      $geometry: {
+        type: "Polygon",
+        coordinates: [[[lng1, lat1], [lng2, lat2], [lng3, lat3], [lng1, lat1]]]
+      }
+    }
+  }
+})
+```
+
+---
+
+## **13. Array Operations**
+
+### **Update Specific Array Elements**
+```javascript
+db.collection_name.updateOne(
+  { _id: 1, "items.name": "apple" },
+  { $set: { "items.$.quantity": 5 } }
+)
+```
+
+### **Add Elements to an Array**
+```javascript
+db.collection_name.updateOne(
+  { _id: 1 },
+  { $push: { tags: "newTag" } }
+)
+```
+
+### **Remove Specific Array Elements**
+```javascript
+db.collection_name.updateOne(
+  { _id: 1 },
+  { $pull: { tags: "obsoleteTag" } }
+)
+```
+
+---
+
+## **14. Data Validation**
+
+### **Define a Validation Schema**
+```javascript
+db.createCollection("products", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["name", "price"],
+      properties: {
+        name: {
+          bsonType: "string",
+          description: "must be a string and is required"
+        },
+        price: {
+          bsonType: "double",
+          minimum: 0,
+          description: "must be a double and is required"
+        }
+      }
+    }
+  }
+})
+```
+
+---
+
+## **15. Change Streams**
+
+Track real-time changes to your collections.
+
+### **Code Example: Watch Changes**
+```javascript
+const changeStream = db.collection_name.watch();
+
+changeStream.on("change", (change) => {
+  console.log("Change detected:", change);
+});
+```
+
+### **Key Concepts**
+- Use for real-time applications like notifications.
+
+---
+
+## **16. Backups and Restores**
+
+### **Backup Database**
+```bash
+mongodump --db database_name --out /backup/directory
+```
+
+### **Restore Database**
+```bash
+mongorestore --db database_name /backup/directory/database_name
+```
+
+---
+
+## **17. Security Best Practices**
+
+1. **Enable Authentication**:
+   ```bash
+   mongod --auth
+   ```
+2. **Create Users with Roles**:
+   ```javascript
+   db.createUser({
+     user: "admin",
+     pwd: "password",
+     roles: [{ role: "userAdminAnyDatabase", db: "admin" }]
+   });
+   ```
+
+3. **Limit Network Exposure**:
+   - Bind MongoDB to specific IPs using `bindIp` in `mongod.conf`.
+
+---
+
+## **18. Best Practices**
+
+1. **Use Proper Indexing**:
+   - Analyze slow queries with `db.currentOp()` and create indexes accordingly.
+
+2. **Sharding for Scalability**:
+   - Split data across multiple shards for large datasets.
+
+3. **Avoid Large Documents**:
+   - MongoDB has a 16MB document size limit.
+
+4. **Enable Write Concern**:
+   - Ensure data integrity with write acknowledgment:
+     ```javascript
+     db.collection_name.insertOne({ key: "value" }, { writeConcern: { w: 1 } });
+     ```
+
+---
+
+## **Resources**
+
+1. [MongoDB Documentation](https://www.mongodb.com/docs/)
+2. [MongoDB University](https://university.mongodb.com/)
+3. [MQL Reference Guide](https://www.mongodb.com/docs/manual/reference/command/)
+
+---
+# Comparison Of SQL To MongoDB
 When comparing **SQL (relational databases)** and **MongoDB (a NoSQL database)**, it largely depends on your specific use case, the type of data you're working with, and the skills of your team. Both have their strengths and weaknesses, so let's break it down to help you understand which might be better or easier for your needs.
 
 ---
